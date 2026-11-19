@@ -12,8 +12,9 @@
   libmp3lame 本身为 LGPL 许可）。
 - 对应源码：https://git.ffmpeg.org/ffmpeg.git （构建版本 n7.1，
   精确 commit 见 `ffmpeg -version` 输出）；BtbN 构建脚本见上述仓库。
-- LGPL 合规：FFmpeg 以**共享库（DLL）**形式分发，用户可自行替换兼容版本的
-  DLL 实现再链接；本程序（MIT 许可）通过独立子进程调用 FFmpeg，二者为独立作品。
+- LGPL 合规：FFmpeg 以独立子进程被调用，与本程序为独立作品；Windows 包以**共享库（DLL）**
+  形式分发 FFmpeg，用户可自行替换兼容版本的 DLL 实现再链接。
+  本程序自身亦以 LGPL-2.1 分发（见 LICENSE）。
 
 ## Python / PyInstaller
 

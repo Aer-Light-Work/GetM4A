@@ -41,4 +41,4 @@ uv run python tests/test_core.py
 
 ## 许可
 
-应用代码：MIT（见 LICENSE）。FFmpeg：LGPL（见 THIRD_PARTY_NOTICES.md）。
+应用代码：LGPL-2.1（见 LICENSE）。FFmpeg：LGPL（见 THIRD_PARTY_NOTICES.md）。
