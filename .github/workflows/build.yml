@@ -29,6 +29,18 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install lame nasm
+          mkdir -p "$RUNNER_TEMP/pc"
+          cat > "$RUNNER_TEMP/pc/libmp3lame.pc" <<EOF
+          prefix=$(brew --prefix lame)
+          libdir=\${prefix}/lib
+          includedir=\${prefix}/include
+          Name: libmp3lame
+          Description: MP3 encoder library
+          Version: 3.100
+          Cflags: -I\${includedir}
+          Libs: -L\${libdir} -lmp3lame
+          EOF
+          export PKG_CONFIG_PATH="$RUNNER_TEMP/pc:$PKG_CONFIG_PATH"
           git clone --depth 1 --branch n7.1 https://git.ffmpeg.org/ffmpeg.git ffmpeg-src
           cd ffmpeg-src
           ./configure --prefix="$RUNNER_TEMP/ffmpeg-lgpl" \

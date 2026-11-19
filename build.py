@@ -13,6 +13,10 @@ import tarfile
 import urllib.request
 import zipfile
 
+if os.name == "nt":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 VENDOR = os.path.join(ROOT, "vendor", "ffmpeg")
 LOCAL_BUILD = r"D:\Tools\ffmpeg-n7.1-latest-win64-lgpl-shared-7.1"
