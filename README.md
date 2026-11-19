@@ -42,3 +42,14 @@ uv run python tests/test_core.py
 ## 许可
 
 应用代码：LGPL-2.1（见 LICENSE）。FFmpeg：LGPL（见 THIRD_PARTY_NOTICES.md）。
+
+## CI 发行版本（GitHub Actions）
+
+| Workflow | 产物 | FFmpeg 来源 | 说明 |
+|---|---|---|---|
+| `build.yml` | `GetM4A-<OS>.zip` | BtbN LGPL 构建 / macOS 源码编译 | LGPL 合规版，捆绑 LGPL ffmpeg |
+| `build-bundled.yml` | `GetM4A-full-<OS>.zip` | gyan.dev (Win) / johnvans.com (Linux) / evermeet.cx (macOS) | 全功能版，自动捆绑完整 ffmpeg，用户无需自行准备可执行文件 |
+
+两个版本均已内置 ffmpeg/ffprobe，下载解压即用。全功能版捆绑的是 GPL 构建
+（含 x264/x265 等，为后续视频转码准备）；macOS 全功能版为 Intel 二进制，
+Apple Silicon 需 Rosetta 2。

@@ -1,0 +1,97 @@
+name: Build full packages (auto-bundled ffmpeg)
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - getm4a.py
+      - build.py
+      - pyproject.toml
+      - uv.lock
+      - .github/workflows/build-bundled.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GETM4A_SKIP_LGPL_VERIFY: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - run: uv sync
+
+      - name: Fetch full-featured FFmpeg (Windows, gyan.dev)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          curl -fsSL -o ff.zip \
+            https://www.gyan.dev/ffmpeg/builds/ffmpeg-master-latest-win64-gpl.zip
+          unzip -q ff.zip
+          echo "GETM4A_FFMPEG_DIR=$PWD/ffmpeg-master-latest-win64-gpl" >> "$GITHUB_ENV"
+
+      - name: Fetch full-featured FFmpeg (Linux, johnvans.com)
+        if: runner.os == 'Linux'
+        run: |
+          curl -fsSL -o ff.tar.xz \
+            https://johnvans.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz
+          tar -xf ff.tar.xz
+          mkdir -p prep/bin
+          mv ffmpeg-git-amd64-static/ffmpeg ffmpeg-git-amd64-static/ffprobe prep/bin/
+          cp ffmpeg-git-amd64-static/GPLv3.txt prep/LICENSE.txt
+          echo "GETM4A_FFMPEG_DIR=$PWD/prep" >> "$GITHUB_ENV"
+
+      - name: Fetch full-featured FFmpeg (macOS, evermeet.cx, Intel/Rosetta)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p prep/bin
+          for b in ffmpeg ffprobe; do
+            url=$(curl -fsSL "https://evermeet.cx/ffmpeg/info/$b/release" \
+              | python3 -c 'import json,sys; print(json.load(sys.stdin)["download"]["url"])')
+            curl -fsSL "$url" -o "prep/bin/$b.zip"
+          done
+          (cd prep/bin && unzip -oq ffmpeg.zip && unzip -oq ffprobe.zip \
+            && mv ffmpeg-* ffmpeg && mv ffprobe-* ffprobe && rm *.zip)
+          chmod +x prep/bin/*
+          cat > prep/LICENSE.txt <<'EOF'
+FFmpeg (GPL build) from evermeet.cx snapshots/releases.
+Source: https://git.ffmpeg.org/ffmpeg.git  License: GPL version 2 or later
+(https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
+EOF
+          echo "GETM4A_FFMPEG_DIR=$PWD/prep" >> "$GITHUB_ENV"
+
+      - name: Build package (bundles fetched ffmpeg, LGPL check skipped for GPL builds)
+        run: uv run python build.py
+
+      - name: Archive
+        shell: bash
+        run: |
+          cd dist
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            7z a "../GetM4A-full-${RUNNER_OS}.zip" GetM4A
+          else
+            zip -qr "../GetM4A-full-${RUNNER_OS}.zip" GetM4A
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GetM4A-full-${{ runner.os }}
+          path: GetM4A-full-*.zip
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: GetM4A-full-*.zip

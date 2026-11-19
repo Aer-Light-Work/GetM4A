@@ -81,7 +81,10 @@ def verify_lgpl():
 
 def build():
     prepare_ffmpeg()
-    verify_lgpl()
+    if os.environ.get("GETM4A_SKIP_LGPL_VERIFY") == "1":
+        print("警告：已跳过 LGPL 合规校验（全功能版捆绑 GPL 构建）")
+    else:
+        verify_lgpl()
     sep = ";" if os.name == "nt" else ":"
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--noconsole",
            "--onedir", "--name", "GetM4A",
