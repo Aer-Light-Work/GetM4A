@@ -65,11 +65,11 @@ jobs:
           (cd prep/bin && unzip -oq ffmpeg.zip && unzip -oq ffprobe.zip \
             && mv ffmpeg-* ffmpeg && mv ffprobe-* ffprobe && rm *.zip)
           chmod +x prep/bin/*
-          cat > prep/LICENSE.txt <<'EOF'
-FFmpeg (GPL build) from evermeet.cx snapshots/releases.
-Source: https://git.ffmpeg.org/ffmpeg.git  License: GPL version 2 or later
-(https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
-EOF
+          printf '%s\n' \
+            'FFmpeg (GPL build) from evermeet.cx releases.' \
+            'Source: https://git.ffmpeg.org/ffmpeg.git' \
+            'License: GPL version 2 or later (https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)' \
+            > prep/LICENSE.txt
           echo "GETM4A_FFMPEG_DIR=$PWD/prep" >> "$GITHUB_ENV"
 
       - name: Build package (bundles fetched ffmpeg, LGPL check skipped for GPL builds)
