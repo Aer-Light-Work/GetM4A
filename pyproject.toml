@@ -1,0 +1,9 @@
+[project]
+name = "getm4a"
+version = "0.1.0"
+description = "从视频容器提取音频流，导出 m4a/flac/mp3"
+requires-python = ">=3.10"
+dependencies = []
+
+[dependency-groups]
+dev = ["pyinstaller>=6.0"]
