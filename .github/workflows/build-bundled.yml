@@ -38,20 +38,28 @@ jobs:
         shell: bash
         run: |
           curl -fsSL -o ff.zip \
-            https://www.gyan.dev/ffmpeg/builds/ffmpeg-master-latest-win64-gpl.zip
+            https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
           unzip -q ff.zip
-          echo "GETM4A_FFMPEG_DIR=$PWD/ffmpeg-master-latest-win64-gpl" >> "$GITHUB_ENV"
+          top=$(unzip -Z1 ff.zip | head -1 | tr -d '/')
+          echo "GETM4A_FFMPEG_DIR=$PWD/$top" >> "$GITHUB_ENV"
 
-      - name: Fetch full-featured FFmpeg (Linux, johnvans.com)
+      - name: Fetch full-featured FFmpeg (Linux, johnvans.com, fallback BtbN GPL)
         if: runner.os == 'Linux'
         run: |
-          curl -fsSL -o ff.tar.xz \
-            https://johnvans.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz
-          tar -xf ff.tar.xz
-          mkdir -p prep/bin
-          mv ffmpeg-git-amd64-static/ffmpeg ffmpeg-git-amd64-static/ffprobe prep/bin/
-          cp ffmpeg-git-amd64-static/GPLv3.txt prep/LICENSE.txt
-          echo "GETM4A_FFMPEG_DIR=$PWD/prep" >> "$GITHUB_ENV"
+          if curl -fsSL --retry 2 -o ff.tar.xz \
+              https://johnvans.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz; then
+            tar -xf ff.tar.xz
+            mkdir -p prep/bin
+            mv ffmpeg-git-amd64-static/ffmpeg ffmpeg-git-amd64-static/ffprobe prep/bin/
+            cp ffmpeg-git-amd64-static/GPLv3.txt prep/LICENSE.txt
+            echo "GETM4A_FFMPEG_DIR=$PWD/prep" >> "$GITHUB_ENV"
+          else
+            echo "johnvans.com 不可达，回退到 BtbN GPL 构建"
+            curl -fsSL -o ff.tar.xz \
+              https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+            tar -xf ff.tar.xz
+            echo "GETM4A_FFMPEG_DIR=$PWD/ffmpeg-master-latest-linux64-gpl" >> "$GITHUB_ENV"
+          fi
 
       - name: Fetch full-featured FFmpeg (macOS, evermeet.cx, Intel/Rosetta)
         if: runner.os == 'macOS'
@@ -59,7 +67,7 @@ jobs:
           mkdir -p prep/bin
           for b in ffmpeg ffprobe; do
             url=$(curl -fsSL "https://evermeet.cx/ffmpeg/info/$b/release" \
-              | python3 -c 'import json,sys; print(json.load(sys.stdin)["download"]["url"])')
+              | python3 -c 'import json,sys; print(json.load(sys.stdin)["download"]["zip"]["url"])')
             curl -fsSL "$url" -o "prep/bin/$b.zip"
           done
           (cd prep/bin && unzip -oq ffmpeg.zip && unzip -oq ffprobe.zip \
