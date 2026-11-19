@@ -41,7 +41,7 @@ jobs:
             https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
           unzip -q ff.zip
           top=$(unzip -Z1 ff.zip | head -1 | tr -d '/')
-          echo "GETM4A_FFMPEG_DIR=$PWD/$top" >> "$GITHUB_ENV"
+          echo "GETM4A_FFMPEG_DIR=$(cygpath -w "$PWD/$top")" >> "$GITHUB_ENV"
 
       - name: Fetch full-featured FFmpeg (Linux, johnvans.com, fallback BtbN GPL)
         if: runner.os == 'Linux'
@@ -70,8 +70,8 @@ jobs:
               | python3 -c 'import json,sys; print(json.load(sys.stdin)["download"]["zip"]["url"])')
             curl -fsSL "$url" -o "prep/bin/$b.zip"
           done
-          (cd prep/bin && unzip -oq ffmpeg.zip && unzip -oq ffprobe.zip \
-            && mv ffmpeg-* ffmpeg && mv ffprobe-* ffprobe && rm *.zip)
+          (cd prep/bin && unzip -oq ffmpeg.zip && unzip -oq ffprobe.zip && rm *.zip \
+            && for b in ffmpeg ffprobe; do [ -f "$b" ] || mv ${b}-* "$b"; done)
           chmod +x prep/bin/*
           printf '%s\n' \
             'FFmpeg (GPL build) from evermeet.cx releases.' \
