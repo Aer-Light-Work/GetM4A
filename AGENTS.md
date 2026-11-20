@@ -7,3 +7,6 @@
 - Python 环境：统一使用 uv（`uv sync` / `uv run`），不向全局 Python 安装依赖。
 - ffmpeg 捆绑：必须使用 LGPL 构建（build.py 的 verify_lgpl 强制校验）；
   全功能版（build-bundled.yml）例外，捆绑 GPL 构建并跳过该校验。
+- ffmpeg 来源：同级仓库 Aer-Light-Work/ffmpeg-build-flow 的滚动 release
+  （须保持 public，匿名直链下载，不需要 token）；BtbN / gyan.dev / johnvans.com /
+  evermeet.cx 仅作回落保留。改动包名或包内布局会同时破坏 build.py 与两条 workflow。

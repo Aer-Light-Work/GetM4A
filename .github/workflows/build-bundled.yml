@@ -33,52 +33,66 @@ jobs:
 
       - run: uv sync
 
-      - name: Fetch full-featured FFmpeg (Windows, gyan.dev)
-        if: runner.os == 'Windows'
+      - name: Fetch full-featured FFmpeg (ffmpeg-build-flow rolling release)
         shell: bash
         run: |
-          curl -fsSL -o ff.zip \
-            https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
-          unzip -q ff.zip
-          top=$(unzip -Z1 ff.zip | head -1 | tr -d '/')
-          echo "GETM4A_FFMPEG_DIR=$(cygpath -w "$PWD/$top")" >> "$GITHUB_ENV"
-
-      - name: Fetch full-featured FFmpeg (Linux, johnvans.com, fallback BtbN GPL)
-        if: runner.os == 'Linux'
-        run: |
-          if curl -fsSL --retry 2 -o ff.tar.xz \
-              https://johnvans.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz; then
-            tar -xf ff.tar.xz
-            mkdir -p prep/bin
-            mv ffmpeg-git-amd64-static/ffmpeg ffmpeg-git-amd64-static/ffprobe prep/bin/
-            cp ffmpeg-git-amd64-static/GPLv3.txt prep/LICENSE.txt
-            echo "GETM4A_FFMPEG_DIR=$PWD/prep" >> "$GITHUB_ENV"
-          else
-            echo "johnvans.com 不可达，回退到 BtbN GPL 构建"
-            curl -fsSL -o ff.tar.xz \
-              https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
-            tar -xf ff.tar.xz
-            echo "GETM4A_FFMPEG_DIR=$PWD/ffmpeg-master-latest-linux64-gpl" >> "$GITHUB_ENV"
+          set -euo pipefail
+          BASE=https://github.com/Aer-Light-Work/ffmpeg-build-flow/releases/download/latest
+          mkdir -p "$RUNNER_TEMP/ff" && cd "$RUNNER_TEMP/ff"
+          case "$RUNNER_OS" in
+            Windows) ARCHIVE=ffmpeg-win64-gpl-shared.zip ;;
+            macOS)   ARCHIVE=ffmpeg-macos-arm64-gpl.tar.xz ;;
+            *)       ARCHIVE=ffmpeg-linux64-gpl.tar.xz ;;
+          esac
+          if curl -fsSL --retry 2 -o "$ARCHIVE" "$BASE/$ARCHIVE"; then
+            if [ "$RUNNER_OS" = Windows ]; then unzip -q "$ARCHIVE"; else tar -xf "$ARCHIVE"; fi
+            top=$(ls -d ffmpeg-*/ | head -1)
+            echo "GETM4A_FFMPEG_DIR=$(cygpath -w "$PWD/${top%/}" 2>/dev/null || echo "$PWD/${top%/}")" \
+              >> "$GITHUB_ENV"
+            exit 0
           fi
-
-      - name: Fetch full-featured FFmpeg (macOS, evermeet.cx, Intel/Rosetta)
-        if: runner.os == 'macOS'
-        run: |
-          mkdir -p prep/bin
-          for b in ffmpeg ffprobe; do
-            url=$(curl -fsSL "https://evermeet.cx/ffmpeg/info/$b/release" \
-              | python3 -c 'import json,sys; print(json.load(sys.stdin)["download"]["zip"]["url"])')
-            curl -fsSL "$url" -o "prep/bin/$b.zip"
-          done
-          (cd prep/bin && unzip -oq ffmpeg.zip && unzip -oq ffprobe.zip && rm *.zip \
-            && for b in ffmpeg ffprobe; do [ -f "$b" ] || mv ${b}-* "$b"; done)
-          chmod +x prep/bin/*
-          printf '%s\n' \
-            'FFmpeg (GPL build) from evermeet.cx releases.' \
-            'Source: https://git.ffmpeg.org/ffmpeg.git' \
-            'License: GPL version 2 or later (https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)' \
-            > prep/LICENSE.txt
-          echo "GETM4A_FFMPEG_DIR=$PWD/prep" >> "$GITHUB_ENV"
+          echo "ffmpeg-build-flow 不可达，回落到第三方构建"
+          case "$RUNNER_OS" in
+            Windows)
+              curl -fsSL -o ff.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+              unzip -q ff.zip
+              top=$(unzip -Z1 ff.zip | head -1 | tr -d '/')
+              echo "GETM4A_FFMPEG_DIR=$(cygpath -w "$PWD/$top")" >> "$GITHUB_ENV"
+              ;;
+            Linux)
+              if curl -fsSL --retry 2 -o ff.tar.xz \
+                  https://johnvans.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz; then
+                tar -xf ff.tar.xz
+                mkdir -p prep/bin
+                mv ffmpeg-git-amd64-static/ffmpeg ffmpeg-git-amd64-static/ffprobe prep/bin/
+                cp ffmpeg-git-amd64-static/GPLv3.txt prep/LICENSE.txt
+              else
+                echo "johnvans.com 不可达，回退到 BtbN GPL 构建"
+                curl -fsSL -o ff.tar.xz \
+                  https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+                tar -xf ff.tar.xz
+                mv ffmpeg-master-latest-linux64-gpl prep
+              fi
+              echo "GETM4A_FFMPEG_DIR=$PWD/prep" >> "$GITHUB_ENV"
+              ;;
+            macOS)
+              mkdir -p prep/bin
+              for b in ffmpeg ffprobe; do
+                url=$(curl -fsSL "https://evermeet.cx/ffmpeg/info/$b/release" \
+                  | python3 -c 'import json,sys; print(json.load(sys.stdin)["download"]["zip"]["url"])')
+                curl -fsSL "$url" -o "prep/bin/$b.zip"
+              done
+              (cd prep/bin && unzip -oq ffmpeg.zip && unzip -oq ffprobe.zip && rm *.zip \
+                && for b in ffmpeg ffprobe; do [ -f "$b" ] || mv ${b}-* "$b"; done)
+              chmod +x prep/bin/*
+              printf '%s\n' \
+                'FFmpeg (GPL build) from evermeet.cx releases.' \
+                'Source: https://git.ffmpeg.org/ffmpeg.git' \
+                'License: GPL version 2 or later (https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)' \
+                > prep/LICENSE.txt
+              echo "GETM4A_FFMPEG_DIR=$PWD/prep" >> "$GITHUB_ENV"
+              ;;
+          esac
 
       - name: Build package (bundles fetched ffmpeg, LGPL check skipped for GPL builds)
         run: uv run python build.py

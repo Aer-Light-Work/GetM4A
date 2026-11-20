@@ -25,37 +25,7 @@ jobs:
 
       - run: uv sync
 
-      - name: Build LGPL FFmpeg from source (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install lame nasm
-          LAME=$(brew --prefix lame)
-          echo "lame prefix: $LAME"
-          find "$LAME" -name 'lame.h' -o -name 'libmp3lame*' | head -20
-          mkdir -p "$RUNNER_TEMP/inc/lame"
-          if [ -f "$LAME/include/lame/lame.h" ]; then
-            INC_FLAG="-I$LAME/include"
-          else
-            ln -sf "$LAME/include/lame.h" "$RUNNER_TEMP/inc/lame/lame.h"
-            INC_FLAG="-I$RUNNER_TEMP/inc"
-          fi
-          echo "INC_FLAG=$INC_FLAG"
-          git clone --depth 1 --branch n7.1 https://git.ffmpeg.org/ffmpeg.git ffmpeg-src
-          cd ffmpeg-src
-          if ! ./configure --prefix="$RUNNER_TEMP/ffmpeg-lgpl" \
-            --enable-libmp3lame --disable-doc --disable-ffplay \
-            --disable-network --disable-autodetect \
-            --extra-cflags="$INC_FLAG" --extra-ldflags="-L$LAME/lib"; then
-            echo '===== config.log (lame) ====='
-            grep -i -B3 -A10 'mp3lame' ffbuild/config.log | tail -60
-            exit 1
-          fi
-          make -j"$(sysctl -n hw.ncpu)"
-          make install
-          cp COPYING.LGPLv2.1 "$RUNNER_TEMP/ffmpeg-lgpl/LICENSE.txt"
-          echo "GETM4A_FFMPEG_DIR=$RUNNER_TEMP/ffmpeg-lgpl" >> "$GITHUB_ENV"
-
-      - name: Build package (prepares and verifies LGPL ffmpeg)
+      - name: Build package (downloads and verifies LGPL ffmpeg)
         run: uv run python build.py
 
       - name: Archive

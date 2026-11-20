@@ -2,8 +2,8 @@
 
 用法：python build.py
 ffmpeg 来源优先级：环境变量 GETM4A_FFMPEG_DIR → 本机已知路径（仅 Windows）
-→ 下载 BtbN LGPL 构建（Windows/Linux）。macOS 请在 CI 中源码编译后
-通过 GETM4A_FFMPEG_DIR 指定（见 .github/workflows/build.yml）。
+→ 下载 ffmpeg-build-flow 的滚动 LGPL 构建（三平台）→ 回落 BtbN
+（仅 Windows/Linux）。
 """
 import os
 import shutil
@@ -20,8 +20,14 @@ if os.name == "nt":
 ROOT = os.path.dirname(os.path.abspath(__file__))
 VENDOR = os.path.join(ROOT, "vendor", "ffmpeg")
 LOCAL_BUILD = r"D:\Tools\ffmpeg-n7.1-latest-win64-lgpl-shared-7.1"
-BTBN = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/"
+ROLLING = "https://github.com/Aer-Light-Work/ffmpeg-build-flow/releases/download/latest/"
 URLS = {
+    "win32": ROLLING + "ffmpeg-win64-lgpl-shared.zip",
+    "linux": ROLLING + "ffmpeg-linux64-lgpl.tar.xz",
+    "darwin": ROLLING + "ffmpeg-macos-arm64-lgpl.tar.xz",
+}
+BTBN = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/"
+FALLBACK_URLS = {
     "win32": BTBN + "ffmpeg-master-latest-win64-lgpl-shared.zip",
     "linux": BTBN + "ffmpeg-master-latest-linux64-lgpl.tar.xz",
 }
@@ -34,13 +40,22 @@ def prepare_ffmpeg():
     if not src and os.name == "nt" and os.path.isdir(LOCAL_BUILD):
         src = LOCAL_BUILD
     if not src:
-        url = URLS.get(sys.platform)
-        if not url:
-            raise SystemExit(f"本平台（{sys.platform}）请源码编译 LGPL ffmpeg 并设置 "
+        urls = [u for u in (URLS.get(sys.platform), FALLBACK_URLS.get(sys.platform)) if u]
+        if not urls:
+            raise SystemExit(f"本平台（{sys.platform}）没有可用的 LGPL 构建源，请自行编译并设置 "
                              "GETM4A_FFMPEG_DIR（指向含 bin/ 与 LICENSE.txt 的目录）")
-        print(f"下载 LGPL 构建: {url}")
-        archive = os.path.join(ROOT, "vendor", os.path.basename(url))
-        urllib.request.urlretrieve(url, archive)
+        archive = None
+        for url in urls:
+            print(f"下载 LGPL 构建: {url}")
+            archive = os.path.join(VENDOR, os.path.basename(url))
+            try:
+                urllib.request.urlretrieve(url, archive)
+                break
+            except OSError as exc:
+                print(f"下载失败：{exc}")
+                archive = None
+        if archive is None:
+            raise SystemExit("LGPL 构建的所有源都不可达")
         if archive.endswith(".zip"):
             with zipfile.ZipFile(archive) as z:
                 z.extractall(os.path.join(ROOT, "vendor"))
